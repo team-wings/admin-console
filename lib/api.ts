@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000/staff/users";
+const API_BASE = "http://127.0.0.1:8000/staff";
 
 type RequestOptions = {
   method?: string;
@@ -48,17 +48,40 @@ export async function apiClient(endpoint: string, options: RequestOptions = {}) 
 }
 
 export async function loginAPI(email: string, password: string) {
-  return apiClient("/login/", { body: { email, password } });
+  return apiClient("/users/login/", { body: { email, password } });
 }
 
 export async function verifyOTPAPI(otp: string) {
-  return apiClient("/verify-login-otp/", { body: { otp_code: otp } });
+  return apiClient("/users/verify-login-otp/", { body: { otp_code: otp } });
 }
 
 export async function refreshTokenAPI(refresh_token: string) {
-  return apiClient("/token/refresh", { body: { refresh_token } });
+  return apiClient("/users/token/refresh", { body: { refresh_token } });
 }
 
 export async function resendOTPAPI(email: string) {
-  return apiClient("/resend-login-otp/", { body: { email } });
+  return apiClient("/users/resend-login-otp/", { body: { email } });
+}
+
+export async function fetchKycSubmissions() {
+  return apiClient("/user-kyc-management/", { method: "GET" });
+}
+
+export async function fetchKycSubmissionDetail(id: string | number) {
+  return apiClient(`/user-kyc-management/${id}/`, { method: "GET" });
+}
+
+export async function fetchAllWebhookPayments() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch("http://127.0.0.1:8000/staff/all-webhook-payments/", { headers });
+  if (!res.ok) {
+    throw new Error("Failed to fetch webhook payments");
+  }
+  return res.json();
 }
