@@ -472,7 +472,7 @@ export default function KycSubmissionDetailPage() {
       const res = await fetchProofOfAddress(id);
       const url = res?.data?.certificate_url || res?.certificate_url || res?.url || res?.data?.url;
       if (url) {
-        const fullUrl = url.startsWith("http") ? url : `http://127.0.0.1:8000${url}`;
+        const fullUrl = url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_BASE}${url}`;
         window.open(fullUrl, "_blank");
       } else {
         alert("Proof of address certificate URL not found");

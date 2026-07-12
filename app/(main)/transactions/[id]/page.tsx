@@ -40,7 +40,7 @@ export default function TransactionDetailPage() {
     setPushError(null);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch(`http://127.0.0.1:8000/staff/transactions/check-reversed-status-confirmation/${transactionId}/`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/staff/transactions/check-reversed-status-confirmation/${transactionId}/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,7 +70,7 @@ export default function TransactionDetailPage() {
     setPushError(null);
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch(`http://127.0.0.1:8000/staff/transactions/check-processing-status/${transactionId}/`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/staff/transactions/check-processing-status/${transactionId}/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

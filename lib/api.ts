@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000/staff";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_BASE}/staff`;
 
 type RequestOptions = {
   method?: string;
@@ -48,7 +48,7 @@ export async function apiClient(endpoint: string, options: RequestOptions = {}) 
 }
 
 export async function logoutAPI(refresh_token: string) {
-  const res = await fetch("http://127.0.0.1:8000/auth/users/logout/", {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/auth/users/logout/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token }),
@@ -193,7 +193,7 @@ export async function fetchHealthStatus() {
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch("http://127.0.0.1:8000/staff/health/health/", { headers });
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/staff/health/health/`, { headers });
   return res.json() as Promise<HealthStatus>;
 }
 
@@ -205,7 +205,7 @@ export async function fetchAllWebhookPayments() {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch("http://127.0.0.1:8000/staff/all-webhook-payments/", { headers });
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/staff/all-webhook-payments/`, { headers });
   if (!res.ok) {
     throw new Error("Failed to fetch webhook payments");
   }
