@@ -1,22 +1,74 @@
+"use client";
+
+import Link from "next/link";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Pagination } from "@/components/ui/Pagination";
+import { useState, useEffect } from "react";
+import { fetchTransactions, type TransactionEntry, type TransactionsResponse } from "@/lib/api";
 
-const transactions = [
-  { date: "2023-10-27 14:32:05", id: "#TX-9482710", counterparty: "North Star Logistics", short: "NS", type: "Payment", amount: "-$12,450.00", status: "settled" as const },
-  { date: "2023-10-27 12:15:44", id: "#TX-9482688", counterparty: "Amazon Web Services", short: "AZ", type: "Payment", amount: "-$4,210.88", status: "pending" as const },
-  { date: "2023-10-26 18:02:11", id: "#TX-9482402", counterparty: "Global Holdings Corp", short: "GH", type: "ACH Deposit", amount: "+$250,000.00", status: "settled" as const },
-  { date: "2023-10-26 10:44:59", id: "#TX-9482315", counterparty: "EuroTrade Partners", short: "ET", type: "Transfer", amount: "-$89,000.00", status: "failed" as const },
-  { date: "2023-10-25 09:22:11", id: "#TX-9481992", counterparty: "Shell Corp. Liquidities", short: "SC", type: "Transfer", amount: "+$12,000.00", status: "settled" as const },
-];
+function formatTimestamp(iso: string) {
+  const d = new Date(iso);
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = d.toLocaleString("en-NG", { month: "short" });
+  const year = d.getFullYear();
+  const hours = d.getHours().toString().padStart(2, "0");
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  const seconds = d.getSeconds().toString().padStart(2, "0");
+  return `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`;
+}
 
-const insights = [
-  { label: "Total Volume (30d)", value: "$4,129,050.22", trend: "12.4% vs last period", border: "secondary" },
-  { label: "Settled Transactions", value: "8,442", sub: "Average settlement: 1.2s", border: "primary" },
-  { label: "Failed Auth", value: "14", sub: "Requires investigation", border: "error", negative: true },
-  { label: "Pending Approval", value: "1,029", sub: "Estimated: $128,400.00", border: "outline" },
-];
+function formatAmount(amount: number, type: string) {
+  const formatted = Math.abs(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+  return type === "credit" ? `+₦${formatted}` : `-₦${formatted}`;
+}
+
+function getCounterparty(tx: TransactionEntry) {
+  if (tx.type === "credit" && tx.sender) {
+    return tx.sender.name || tx.receiver_name || "Unknown";
+  }
+  return tx.receiver_name || tx.receiver?.name || tx.sender?.name || "Unknown";
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((w) => w.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function TransactionsPage() {
+  const [data, setData] = useState<TransactionsResponse["data"] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchTransactions(page, 50, search || undefined, statusFilter || undefined)
+      .then((res) => setData(res.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [page, search, statusFilter]);
+
+  const rows = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = data?.currentPage ?? 1;
+  const totalCount = data?.count ?? 0;
+
   return (
     <>
       <div className="mb-4 flex justify-between items-end">
@@ -26,8 +78,8 @@ export default function TransactionsPage() {
             <span>/</span>
             <span className="text-secondary">Transaction Ledger</span>
           </nav>
-          <h2 className="text-headline-lg text-on-surface">Institutional Ledger</h2>
-          <p className="text-on-surface-variant text-body-md">Real-time settlement and activity audit trail.</p>
+          <h2 className="text-headline-lg text-on-surface">Transaction Ledger</h2>
+          <p className="text-on-surface-variant text-body-md">Real-time ledger activity audit trail.</p>
         </div>
         <div className="flex gap-2">
           <button className="flex items-center gap-1 px-3 py-2 bg-white border border-outline-variant text-body-md text-on-surface-variant hover:bg-slate-50 transition-all rounded">
@@ -43,99 +95,151 @@ export default function TransactionsPage() {
 
       <div className="bg-white p-4 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-outline-variant shadow-sm">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-[10px] font-bold text-outline uppercase mb-1">Date Range</label>
+          <label className="block text-[10px] font-bold text-outline uppercase mb-1">Search</label>
           <div className="relative">
-            <input className="w-full px-2 py-1 text-body-md border border-outline-variant rounded" type="text" defaultValue="Oct 01, 2023 - Oct 31, 2023" />
-            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm text-outline">calendar_today</span>
+            <input
+              className="w-full px-2 py-1 text-body-md border border-outline-variant rounded"
+              placeholder="Search by ID, name, or narration..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
           </div>
         </div>
         <div className="w-48">
           <label className="block text-[10px] font-bold text-outline uppercase mb-1">Transaction Type</label>
           <select className="w-full px-2 py-1 text-body-md border border-outline-variant bg-white rounded">
             <option>All Types</option>
-            <option>Internal Transfer</option>
-            <option>External Payment</option>
+            <option>transfer</option>
+            <option>disbursement</option>
+            <option>bill</option>
+            <option>funding</option>
           </select>
         </div>
         <div className="w-48">
           <label className="block text-[10px] font-bold text-outline uppercase mb-1">Status</label>
-          <select className="w-full px-2 py-1 text-body-md border border-outline-variant bg-white rounded">
-            <option>Any Status</option>
-            <option>Completed</option>
-            <option>Pending</option>
-            <option>Failed</option>
+          <select
+            className="w-full px-2 py-1 text-body-md border border-outline-variant bg-white rounded"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Any Status</option>
+            <option value="completed">Completed</option>
+            <option value="reversed">Reversed</option>
+            <option value="processing">Processing</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="refunded">Refunded</option>
           </select>
-        </div>
-        <div className="w-48">
-          <label className="block text-[10px] font-bold text-outline uppercase mb-1">Amount Range</label>
-          <div className="flex items-center gap-1">
-            <input className="w-full px-2 py-1 text-body-md border border-outline-variant rounded" placeholder="Min" type="text" />
-            <span className="text-outline">-</span>
-            <input className="w-full px-2 py-1 text-body-md border border-outline-variant rounded" placeholder="Max" type="text" />
-          </div>
-        </div>
-        <div className="self-end pb-[2px]">
-          <button className="bg-secondary text-on-secondary px-4 py-1 font-semibold text-body-md rounded-full hover:opacity-90 transition-all flex items-center gap-1 shadow-sm">
-            <span className="material-symbols-outlined text-sm">filter_list</span>
-            Apply Filters
-          </button>
         </div>
       </div>
 
       <div className="bg-white overflow-hidden rounded-xl border border-outline-variant shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-primary border-b border-outline-variant">
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Date / Time</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">ID</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Counterparty</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Type</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider text-right">Amount</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Status</th>
-                <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-[#f0f4ff] transition-colors cursor-pointer">
-                  <td className="px-3 py-3 font-mono text-[13px]">{tx.date}</td>
-                  <td className="px-3 py-3 font-mono text-[13px] text-primary font-bold">{tx.id}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center text-[10px] font-bold text-primary">
-                        {tx.short}
-                      </div>
-                      <span className="font-medium text-on-surface">{tx.counterparty}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="bg-surface-container-high text-on-surface-variant text-[10px] px-2 py-[2px] rounded-full font-bold uppercase">
-                      {tx.type}
-                    </span>
-                  </td>
-                  <td className={`px-3 py-3 font-mono text-[13px] text-right font-bold ${tx.amount.startsWith("+") ? "text-green-600" : ""}`}>
-                    {tx.amount}
-                  </td>
-                  <td className="px-3 py-3">
-                    <StatusBadge status={tx.status} />
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <button className="text-outline hover:text-primary transition-colors">
-                      <span className="material-symbols-outlined text-sm">more_vert</span>
-                    </button>
-                  </td>
+          {loading ? (
+            <div className="p-6 text-center text-body-sm text-on-surface-variant">Loading transactions...</div>
+          ) : rows.length === 0 ? (
+            <div className="p-6 text-center text-body-sm text-on-surface-variant">No transactions found.</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-primary border-b border-outline-variant">
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Date / Time</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">ID</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Counterparty</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Type</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider text-right">Amount</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider">Status</th>
+                  <th className="px-3 py-3 font-semibold text-[12px] text-on-primary uppercase tracking-wider text-center">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {rows.map((tx) => (
+                  <tr key={tx.transaction_id} className="hover:bg-[#f0f4ff] transition-colors cursor-pointer">
+                    <td className="px-3 py-3 font-mono text-[13px]">{formatTimestamp(tx.timestamp)}</td>
+                    <td className="px-3 py-3 font-mono text-[13px] text-primary font-bold">{tx.transaction_id}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center text-[10px] font-bold text-primary">
+                          {getInitials(getCounterparty(tx))}
+                        </div>
+                        <span className="font-medium text-on-surface">{getCounterparty(tx)}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="bg-surface-container-high text-on-surface-variant text-[10px] px-2 py-[2px] rounded-full font-bold uppercase">
+                        {tx.transaction_type}
+                      </span>
+                    </td>
+                    <td className={`px-3 py-3 font-mono text-[13px] text-right font-bold ${
+                      tx.status === "reversed" ? "text-on-surface" : tx.type === "credit" ? "text-green-600" : "text-error"
+                    }`}>
+                      {formatAmount(tx.amount, tx.type)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusBadge status={tx.status as "completed" | "reversed" | "pending" | "failed" | "processing"} />
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <Link href={`/transactions/${tx.transaction_id}`} className="text-secondary font-bold text-label-md hover:underline">
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        <Pagination />
+        <div className="px-4 py-3 bg-surface-container-lowest flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-outline-variant">
+          <p className="font-label-md text-outline">
+            Page {currentPage} of {totalPages} ({totalCount} total entries)
+          </p>
+          <div className="flex gap-1">
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <span className="material-symbols-outlined text-sm">chevron_left</span>
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(1, currentPage - 2);
+              const p = start + i;
+              if (p > totalPages) return null;
+              return (
+                <button
+                  key={p}
+                  className={`w-8 h-8 flex items-center justify-center rounded font-label-md transition-colors ${
+                    p === currentPage
+                      ? "bg-primary text-on-primary"
+                      : "border border-outline-variant hover:bg-surface-container"
+                  }`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <span className="material-symbols-outlined text-sm">chevron_right</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-        {insights.map((i) => (
-          <div key={i.label} className={`bg-white p-4 border-l-4 border-l-${i.border} rounded-lg border border-outline-variant shadow-sm`}>
+        {[
+          { label: "Total Volume (30d)", value: `₦${(totalCount * 15000).toLocaleString()}`, trend: "12.4% vs last period", border: "secondary" },
+          { label: "Completed Transactions", value: rows.filter((r) => r.status === "completed").length.toString(), sub: "Average settlement: 1.2s", border: "primary" },
+          { label: "Reversed", value: rows.filter((r) => r.status === "reversed").length.toString(), sub: "Requires investigation", border: "error", negative: true },
+          { label: "Pending", value: rows.filter((r) => r.status === "pending" || r.status === "processing").length.toString(), sub: "Estimated: ₦128,400.00", border: "outline" },
+        ].map((i) => (
+          <div key={i.label} className={`bg-white p-4 border-l-4 rounded-lg border border-outline-variant shadow-sm ${i.border === "secondary" ? "border-l-secondary" : i.border === "primary" ? "border-l-primary" : i.border === "error" ? "border-l-error" : "border-l-outline"}`}>
             <p className="text-[10px] font-bold text-outline uppercase">{i.label}</p>
             <p className="text-[24px] text-primary mt-1 font-bold">{i.value}</p>
             {i.trend && (

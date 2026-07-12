@@ -1,0 +1,24 @@
+{
+    "app": {
+        "status": "up",
+        "message": "Application is responding"
+    },
+    "services": {
+        "redis": {
+            "status": "down",
+            "message": "Redis is unavailable"
+        },
+        "postgres": {
+            "status": "up",
+            "message": "Postgres query executed successfully"
+        },
+        "celery": {
+            "status": "up",
+            "message": "Celery workers are reachable"
+        }
+    },
+    "overall_status": "degraded",
+    "errors": {
+        "redis": "Error 111 connecting to localhost:6379. Connection refused."
+    }
+}

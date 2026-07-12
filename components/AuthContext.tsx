@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { loginAPI, verifyOTPAPI, resendOTPAPI } from "@/lib/api";
+import { loginAPI, verifyOTPAPI, resendOTPAPI, logoutAPI } from "@/lib/api";
 
 type User = {
   first_name: string;
   last_name: string;
   email: string;
   username: string;
+  profile_image: string | null;
   is_online: boolean;
   is_staff: boolean;
   can_create: boolean;
@@ -47,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
@@ -69,6 +72,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let timeout: ReturnType<typeof setTimeout>;
+
+    function resetTimer() {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        logout();
+      }, SESSION_TIMEOUT_MS);
+    }
+
+    const events = ["mousedown", "keydown", "scroll", "touchstart"];
+    events.forEach((e) => window.addEventListener(e, resetTimer));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeout);
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+    };
+  }, [user]);
 
   const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
@@ -132,7 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refresh_token = localStorage.getItem("refresh_token");
+    try {
+      if (refresh_token) {
+        await logoutAPI(refresh_token);
+      }
+    } catch {
+      // Proceed with client-side cleanup even if API call fails
+    }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");

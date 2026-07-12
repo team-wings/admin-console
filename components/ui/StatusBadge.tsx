@@ -1,5 +1,5 @@
 type StatusBadgeProps = {
-  status: "pending" | "verified" | "settled" | "flagged" | "failed" | "processing" | "active" | "suspended" | "completed";
+  status: "pending" | "verified" | "settled" | "flagged" | "failed" | "processing" | "active" | "suspended" | "completed" | "reversed";
 };
 
 const statusStyles: Record<string, string> = {
@@ -10,6 +10,7 @@ const statusStyles: Record<string, string> = {
   failed: "bg-[#FFEBEE] text-[#C62828]",
   processing: "bg-[#FFF8E1] text-[#F57F17]",
   completed: "bg-[#E8F5E9] text-[#2E7D32]",
+  reversed: "bg-[#FFF3E0] text-[#EF6C00]",
   active: "bg-green-50 text-green-700",
   suspended: "bg-error-container text-error",
 };
